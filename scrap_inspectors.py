@@ -31,21 +31,25 @@ def update_quarter_inspectors_data(quarters_link):
         district_name = district.text
         district_link = district.get_attribute('value')
         district_select = driver.find_element(By.CSS_SELECTOR, '.qly-districts-select select')
-        district_select.send_keys(district_link)
+        try:
+            district_select.send_keys(district_link)
 
-        district_option = driver.find_element(By.XPATH, f'//option[text()="{district_name}"]')
-        district_option.click()
+            district_option = driver.find_element(By.XPATH, f'//option[text()="{district_name}"]')
+            district_option.click()
 
-        # Получение обновленной страницы и сбор списка квартальных этого района
-        page_content = driver.find_element(By.CLASS_NAME, 'qly-search-table')
-        inspector_elements = page_content.find_elements(By.CLASS_NAME, 'qly-search-cell.js-district-qly a')
+            # Получение обновленной страницы и сбор списка квартальных этого района
+            page_content = driver.find_element(By.CLASS_NAME, 'qly-search-table')
+            inspector_elements = page_content.find_elements(By.CLASS_NAME, 'qly-search-cell.js-district-qly a')
 
-        # Для каждого квартального получаем его имя и персональную ссылку на профиль
-        for inspector_element in inspector_elements:
-            inspector_href = inspector_element.get_attribute('href')
-            inspector_data = parse_inspector_card(inspector_href)
-            inspector_data['district'] = district_name  # Добавление информации о районе в словарь
-            all_data.append(inspector_data)
+            # Для каждого квартального получаем его имя и персональную ссылку на профиль
+            for inspector_element in inspector_elements:
+                inspector_href = inspector_element.get_attribute('href')
+                inspector_data = parse_inspector_card(inspector_href)
+                inspector_data['district'] = district_name  # Добавление информации о районе в словарь
+                all_data.append(inspector_data)
+        except Exception as e:
+            print(f"Error processing district '{district_name}': {str(e)}")
+            continue
 
     save_data_to_csv(all_data, 'data.csv')
 
@@ -90,7 +94,7 @@ def parse_inspector_card(url):
 
 
 def save_data_to_csv(data, filename):
-    fieldnames = ['Район', 'Имя', 'Телефон', 'Закрепленный имущественный комплекс', 'Код карты', 'Границы участка']
+    fieldnames = ['district', 'name', 'phone', 'complex_name', 'map_code', 'boundaries']
 
     with open(filename, 'w', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
