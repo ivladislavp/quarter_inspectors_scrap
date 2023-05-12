@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import csv
 import requests
 import certifi
+import time
 
 options = Options()
 options.add_argument('--incognito')
@@ -17,50 +18,57 @@ all_data = []
 # Хардкод на раздел "где мой квартальный" на сайте Екатеринбург.рф
 eka_link = 'https://xn--80acgfbsl1azdqr.xn--p1ai/справка/квартальные#tab3'
 
+from selenium.webdriver.support.ui import Select
+
 
 def update_quarter_inspectors_data(quarters_link):
-    # Сбор списка названий и ссылок на районы в словарь
     driver.get(quarters_link)
     wait = WebDriverWait(driver, 30)
-    selector = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'qly-districts-select')))
-    districts_elements = selector.find_elements(By.TAG_NAME, 'option')
+    wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'qly-districts-select')))
+    district_select = driver.find_element(By.CSS_SELECTOR, '.qly-districts-select select')
+    district_select_object = Select(district_select)
 
-    # Для каждого района из списка районов нажимаем на выпадающий список
-    # Чтобы поочередно нажать на каждый элемент списка
-    for district in districts_elements:
-        district_name = district.text
-        district_link = district.get_attribute('value')
-        district_select = driver.find_element(By.CSS_SELECTOR, '.qly-districts-select select')
+    district_names = [option.text for option in district_select_object.options[1:]]
+
+    for i, district_name in enumerate(district_names):
         try:
-            district_select.send_keys(district_link)
-
-            district_option = driver.find_element(By.XPATH, f'//option[text()="{district_name}"]')
-            district_option.click()
-
-            # Получение обновленной страницы и сбор списка квартальных этого района
+            district_select_object.select_by_visible_text(district_name)
+            time.sleep(2)  # Добавляем задержку, чтобы дать странице время загрузиться
             page_content = driver.find_element(By.CLASS_NAME, 'qly-search-table')
             inspector_elements = page_content.find_elements(By.CLASS_NAME, 'qly-search-cell.js-district-qly a')
 
-            # Для каждого квартального получаем его имя и персональную ссылку на профиль
             for inspector_element in inspector_elements:
                 inspector_href = inspector_element.get_attribute('href')
+                time.sleep(7)
                 inspector_data = parse_inspector_card(inspector_href)
-                inspector_data['district'] = district_name  # Добавление информации о районе в словарь
+                inspector_data['district'] = district_name
                 all_data.append(inspector_data)
+
+            print(f"Processed district: {district_name}")
+
+            # Check if there are more districts
+            if i < len(district_names) - 1:
+                driver.get(quarters_link)  # Navigate back to the original link
+                wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'qly-districts-select')))
+                district_select = driver.find_element(By.CSS_SELECTOR, '.qly-districts-select select')
+                district_select_object = Select(district_select)
+                district_select_object.select_by_visible_text(district_names[i + 1])
+                time.sleep(2)  # Add a delay to allow the page to load
+
         except Exception as e:
             print(f"Error processing district '{district_name}': {str(e)}")
             continue
 
     save_data_to_csv(all_data, 'data.csv')
 
-
-# TODO регулярка которая обрезает хвосты и оставляет только #userId инспектора для подставления в ссылку
+    # TODO регулярка которая обрезает хвосты и оставляет только #userId инспектора для подставления в ссылку
 # TODO возвращаемый map_code приходит в виде координат прямоугольника, нужно научиться его читать
 def parse_inspector_card(url):
     driver.get(url)
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.qly-card')))
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
-
     inspector_data = {}
 
     # Извлечение имени
