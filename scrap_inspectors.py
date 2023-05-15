@@ -61,7 +61,8 @@ def update_quarter_inspectors_data(quarters_link):
 
     save_data_to_csv(all_data, 'data.csv')
 
-    # TODO регулярка которая обрезает хвосты и оставляет только #userId инспектора для подставления в ссылку
+
+# TODO регулярка которая обрезает хвосты и оставляет только #userId инспектора для подставления в ссылку
 # TODO возвращаемый map_code приходит в виде координат прямоугольника, нужно научиться его читать
 def parse_inspector_card(url):
     driver.get(url)
@@ -109,7 +110,38 @@ def save_data_to_csv(data, filename):
         writer.writeheader()
         writer.writerows(data)
 
-try:
-    update_quarter_inspectors_data(eka_link)
-except Exception as e:
-    print(e)
+
+def get_inspector_data(url):
+    url = 'https://xn--80acgfbsl1azdqr.xn--p1ai/data-send/quarterly/qlydata'
+    headers = {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7,es;q=0.6,pl;q=0.5,it;q=0.4',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Cookie': 'newportal=729ba6f85272f2e1b44504239d70a651; _ym_uid=1683803320120712192; _ym_d=1683803320; sputnik_session=1684077816368|1; _ym_isad=1',
+        'DNT': '1',
+        'Origin': 'https://xn--80acgfbsl1azdqr.xn--p1ai',
+        'Referer': 'https://xn--80acgfbsl1azdqr.xn--p1ai/%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BA%D0%B0/%D0%BA%D0%B2%D0%B0%D1%80%D1%82%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+        'sec-ch-ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"'
+    }
+    data = {
+        'user_id': '3b5af31e-b6a9-4fcf-8268-8f92bb52ea42',
+        'page': '1'
+    }
+
+    return requests.post(url, headers=headers, data=data, verify=False)
+
+# try:
+#     update_quarter_inspectors_data(eka_link)
+# except Exception as e:
+#     print(e)
+#
+# print(parse_inspector_card(
+#     'https://xn--80acgfbsl1azdqr.xn--p1ai/%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BA%D0%B0/%D0%BA%D0%B2%D0%B0%D1%80%D1%82%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5#userId=3b5af31e-b6a9-4fcf-8268-8f92bb52ea42'))
