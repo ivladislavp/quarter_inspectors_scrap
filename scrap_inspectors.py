@@ -8,14 +8,15 @@ import csv
 import requests
 import certifi
 import time
+import re
+import json
 
 options = Options()
 options.add_argument('--incognito')
 driver = webdriver.Chrome(options=options)
-
 all_data = []
 
-# Хардкод на раздел "где мой квартальный" на сайте Екатеринбург.рф
+# Указывает на раздел "где мой квартальный" на сайте Екатеринбург.рф
 eka_link = 'https://xn--80acgfbsl1azdqr.xn--p1ai/справка/квартальные#tab3'
 
 from selenium.webdriver.support.ui import Select
@@ -39,10 +40,13 @@ def update_quarter_inspectors_data(quarters_link):
 
             for inspector_element in inspector_elements:
                 inspector_href = inspector_element.get_attribute('href')
-                time.sleep(7)
-                inspector_data = parse_inspector_card(inspector_href)
-                inspector_data['district'] = district_name
-                all_data.append(inspector_data)
+                pattern = r"userId=([a-f0-9-]+)"
+                match = re.search(pattern, inspector_href)
+                if match:
+                    user_id = match.group(1)
+                    inspector_data = get_inspector_data(user_id)
+                    #print(inspector_data)
+                    all_data.append(inspector_data)
 
             print(f"Processed district: {district_name}")
 
@@ -59,59 +63,48 @@ def update_quarter_inspectors_data(quarters_link):
             print(f"Error processing district '{district_name}': {str(e)}")
             continue
 
-    save_data_to_csv(all_data, 'data.csv')
+    save_data_to_csv(all_data, 'datanew.csv')
+
+# старая версия, в которой карточка инспектора парсится через selenium+bs4
+# def parse_inspector_card(url):
+#     driver.get(url)
+#     wait = WebDriverWait(driver, 10)
+#     wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.qly-card')))
+#     html = driver.page_source
+#     soup = BeautifulSoup(html, 'html.parser')
+#     inspector_data = {}
+#
+#     # Извлечение имени
+#     name_element = soup.find('h3')
+#     if name_element:
+#         inspector_data['name'] = name_element.text.strip()
+#
+#     # Извлечение телефона
+#     phone_element = soup.find('div', class_='qly-card-coord')
+#     if phone_element:
+#         inspector_data['phone'] = phone_element.text.strip()
+#
+#     # Извлечение закрепленного имущественного комплекса
+#     complex_name_element = soup.find('div', string='Закреплённый имущественный комплекс:')
+#     if complex_name_element:
+#         inspector_data['complex_name'] = complex_name_element.find_next('div', class_='qly-card-coord').text.strip()
+#
+#     # Извлечение карты
+#     map_element = soup.find('path', class_='leaflet-interactive')
+#     if map_element:
+#         inspector_data['map_code'] = map_element['d']
+#
+#     # Извлечение границ участка
+#     boundaries_element = soup.find('div', class_='qly-card-info-photo', string='Границы имущественного комплекса:')
+#     if boundaries_element:
+#         boundaries_text = boundaries_element.find_next('div', class_='qly-card-info-info').p.get_text()
+#         # boundaries_list = boundaries_text.split(' ')
+#         inspector_data['boundaries'] = boundaries_text
+#
+#     return inspector_data
 
 
-# TODO регулярка которая обрезает хвосты и оставляет только #userId инспектора для подставления в ссылку
-# TODO возвращаемый map_code приходит в виде координат прямоугольника, нужно научиться его читать
-def parse_inspector_card(url):
-    driver.get(url)
-    wait = WebDriverWait(driver, 10)
-    wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.qly-card')))
-    html = driver.page_source
-    soup = BeautifulSoup(html, 'html.parser')
-    inspector_data = {}
-
-    # Извлечение имени
-    name_element = soup.find('h3')
-    if name_element:
-        inspector_data['name'] = name_element.text.strip()
-
-    # Извлечение телефона
-    phone_element = soup.find('div', class_='qly-card-coord')
-    if phone_element:
-        inspector_data['phone'] = phone_element.text.strip()
-
-    # Извлечение закрепленного имущественного комплекса
-    complex_name_element = soup.find('div', string='Закреплённый имущественный комплекс:')
-    if complex_name_element:
-        inspector_data['complex_name'] = complex_name_element.find_next('div', class_='qly-card-coord').text.strip()
-
-    # Извлечение карты
-    map_element = soup.find('path', class_='leaflet-interactive')
-    if map_element:
-        inspector_data['map_code'] = map_element['d']
-
-    # Извлечение границ участка
-    boundaries_element = soup.find('div', class_='qly-card-info-photo', string='Границы имущественного комплекса:')
-    if boundaries_element:
-        boundaries_text = boundaries_element.find_next('div', class_='qly-card-info-info').p.get_text()
-        # boundaries_list = boundaries_text.split(' ')
-        inspector_data['boundaries'] = boundaries_text
-
-    return inspector_data
-
-
-def save_data_to_csv(data, filename):
-    fieldnames = ['district', 'name', 'phone', 'complex_name', 'map_code', 'boundaries']
-
-    with open(filename, 'w', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(data)
-
-
-def get_inspector_data(url):
+def get_inspector_data(user_id):
     url = 'https://xn--80acgfbsl1azdqr.xn--p1ai/data-send/quarterly/qlydata'
     headers = {
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -132,16 +125,28 @@ def get_inspector_data(url):
         'sec-ch-ua-platform': '"Windows"'
     }
     data = {
-        'user_id': '3b5af31e-b6a9-4fcf-8268-8f92bb52ea42',
+        'user_id': f'{user_id}',
         'page': '1'
     }
 
-    return requests.post(url, headers=headers, data=data, verify=False)
+    response = requests.post(url, headers=headers, data=data, verify=False)
+    json_response = response.text
+    data_dict = json.loads(json_response)
+    qly_data = data_dict['data']['qly']
+    return qly_data
 
-# try:
-#     update_quarter_inspectors_data(eka_link)
-# except Exception as e:
-#     print(e)
-#
-# print(parse_inspector_card(
-#     'https://xn--80acgfbsl1azdqr.xn--p1ai/%D1%81%D0%BF%D1%80%D0%B0%D0%B2%D0%BA%D0%B0/%D0%BA%D0%B2%D0%B0%D1%80%D1%82%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5#userId=3b5af31e-b6a9-4fcf-8268-8f92bb52ea42'))
+
+def save_data_to_csv(data, filename):
+
+    fieldnames = ['name', 'phone', 'mobilePhone', 'email', 'districtTitle', 'quarterTitle', 'quarterDescription',
+                  'quarterCoordinates']
+
+    with open(filename, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
+try:
+    update_quarter_inspectors_data(eka_link)
+except Exception as e:
+    print(e)
