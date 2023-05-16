@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import Select
 from bs4 import BeautifulSoup
 import csv
 import requests
@@ -18,8 +19,6 @@ all_data = []
 
 # Указывает на раздел "где мой квартальный" на сайте Екатеринбург.рф
 eka_link = 'https://xn--80acgfbsl1azdqr.xn--p1ai/справка/квартальные#tab3'
-
-from selenium.webdriver.support.ui import Select
 
 
 def update_quarter_inspectors_data(quarters_link):
@@ -45,7 +44,7 @@ def update_quarter_inspectors_data(quarters_link):
                 if match:
                     user_id = match.group(1)
                     inspector_data = get_inspector_data(user_id)
-                    #print(inspector_data)
+                    # print(inspector_data)
                     all_data.append(inspector_data)
 
             print(f"Processed district: {district_name}")
@@ -64,44 +63,6 @@ def update_quarter_inspectors_data(quarters_link):
             continue
 
     save_data_to_csv(all_data, 'datanew.csv')
-
-# старая версия, в которой карточка инспектора парсится через selenium+bs4
-# def parse_inspector_card(url):
-#     driver.get(url)
-#     wait = WebDriverWait(driver, 10)
-#     wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.qly-card')))
-#     html = driver.page_source
-#     soup = BeautifulSoup(html, 'html.parser')
-#     inspector_data = {}
-#
-#     # Извлечение имени
-#     name_element = soup.find('h3')
-#     if name_element:
-#         inspector_data['name'] = name_element.text.strip()
-#
-#     # Извлечение телефона
-#     phone_element = soup.find('div', class_='qly-card-coord')
-#     if phone_element:
-#         inspector_data['phone'] = phone_element.text.strip()
-#
-#     # Извлечение закрепленного имущественного комплекса
-#     complex_name_element = soup.find('div', string='Закреплённый имущественный комплекс:')
-#     if complex_name_element:
-#         inspector_data['complex_name'] = complex_name_element.find_next('div', class_='qly-card-coord').text.strip()
-#
-#     # Извлечение карты
-#     map_element = soup.find('path', class_='leaflet-interactive')
-#     if map_element:
-#         inspector_data['map_code'] = map_element['d']
-#
-#     # Извлечение границ участка
-#     boundaries_element = soup.find('div', class_='qly-card-info-photo', string='Границы имущественного комплекса:')
-#     if boundaries_element:
-#         boundaries_text = boundaries_element.find_next('div', class_='qly-card-info-info').p.get_text()
-#         # boundaries_list = boundaries_text.split(' ')
-#         inspector_data['boundaries'] = boundaries_text
-#
-#     return inspector_data
 
 
 def get_inspector_data(user_id):
@@ -137,7 +98,6 @@ def get_inspector_data(user_id):
 
 
 def save_data_to_csv(data, filename):
-
     fieldnames = ['name', 'phone', 'mobilePhone', 'email', 'districtTitle', 'quarterTitle', 'quarterDescription',
                   'quarterCoordinates']
 
@@ -145,6 +105,7 @@ def save_data_to_csv(data, filename):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
+
 
 try:
     update_quarter_inspectors_data(eka_link)
