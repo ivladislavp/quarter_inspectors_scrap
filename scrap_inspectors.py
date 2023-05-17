@@ -58,11 +58,11 @@ def update_quarter_inspectors_data(quarters_link):
                 district_select_object.select_by_visible_text(district_names[i + 1])
                 time.sleep(2)  # Add a delay to allow the page to load
 
-        except Exception as e:
-            print(f"Error processing district '{district_name}': {str(e)}")
+        except Exception as err:
+            print(f"Error processing district '{district_name}': {str(err)}")
             continue
 
-    save_data_to_csv(all_data, 'datanew.csv')
+    save_data_to_csv(all_data, 'quarter_inspectors.csv')
 
 
 def get_inspector_data(user_id):
@@ -107,7 +107,8 @@ def save_data_to_csv(data, filename):
         writer.writerows(data)
 
 
-try:
-    update_quarter_inspectors_data(eka_link)
-except Exception as e:
-    print(e)
+if __name__ == "__main__":
+    try:
+        update_quarter_inspectors_data(eka_link)
+    except Exception as e:
+        print(e)
